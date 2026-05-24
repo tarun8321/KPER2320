@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anatomy Study — Interactive Skeleton</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111420;
+    --border: #1e2540;
+    --accent: #4af0c8;
+    --accent2: #f04a7a;
+    --accent3: #f0c84a;
+    --text: #d8e0f0;
+    --muted: #5a6080;
+    --bone: #c8b89a;
+    --bone-hover: #4af0c8;
+    --bone-active: #f04a7a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+
+  header span {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 32px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    padding: 12px 24px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab:hover { color: var(--text); }
+
+  .main { display: flex; height: calc(100vh - 100px); }
+
+  /* ===== SKELETON VIEW ===== */
+  #skeleton-view {
+    flex: 1;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .skeleton-canvas {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 50% 30%, #0f1830 0%, #0a0c10 70%);
+    overflow: hidden;
+  }
+
+  .skeleton-canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 39px, #1e2540 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, #1e2540 40px);
+    opacity: 0.15;
+  }
+
+  .skel-svg {
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 0 40px rgba(74, 240, 200, 0.08));
+    cursor: pointer;
+    max-height: 85vh;
+    width: auto;
+  }
+
+  .bone-path {
+    fill: var(--bone);
+    stroke: #8a7a6a;
+    stroke-width: 0.5;
+    transition: fill 0.2s, filter 0.2s;
+    cursor: pointer;
+  }
+
+  .bone-path:hover {
+    fill: var(--bone-hover);
+    filter: drop-shadow(0 0 8px rgba(74, 240, 200, 0.6));
+  }
+
+  .bone-path.active {
+    fill: var(--bone-active);
+    filter: drop-shadow(0 0 12px rgba(240, 74, 122, 0.8));
+  }
+
+  .bone-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    fill: var(--muted);
+    pointer-events: none;
+    transition: fill 0.2s;
+  }
+
+  /* Info Panel */
+  .info-panel {
+    width: 360px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .info-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    background: #0d1018;
+  }
+
+  .info-header .bone-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .info-header .bone-category {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--accent3);
+    text-transform: uppercase;
+  }
+
+  .info-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .info-section {
+    margin-bottom: 20px;
+  }
+
+  .info-section h4 {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--accent3);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .info-section p, .info-section li {
+    font-size: 0.76rem;
+    line-height: 1.7;
+    color: var(--text);
+    opacity: 0.85;
+  }
+
+  .info-section ul { padding-left: 16px; }
+  .info-section li { margin-bottom: 4px; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    margin: 2px;
+    font-weight: 700;
+  }
+
+  .tag-joint { background: rgba(74, 240, 200, 0.15); color: var(--accent); }
+  .tag-muscle { background: rgba(240, 74, 122, 0.15); color: var(--accent2); }
+  .tag-nerve { background: rgba(240, 200, 74, 0.15); color: var(--accent3); }
+  .tag-exam { background: rgba(240, 74, 122, 0.3); color: #fff; border: 1px solid var(--accent2); }
+
+  .placeholder-msg {
+    text-align: center;
+    padding: 40px 24px;
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.8;
+  }
+
+  .placeholder-msg .icon { font-size: 2.5rem; margin-bottom: 12px; display: block; opacity: 0.4; }
+
+  /* ===== NOTES VIEW ===== */
+  #notes-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 24px;
+    align-content: start;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .note-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .note-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .note-card-header {
+    padding: 14px 20px;
+    background: #0d1018;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .note-card-header .num {
+    width: 24px; height: 24px;
+    background: var(--accent);
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .note-card-header h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .note-card-body { padding: 16px 20px; }
+
+  .note-card-body p, .note-card-body li {
+    font-size: 0.73rem;
+    line-height: 1.75;
+    color: #a0acc0;
+  }
+
+  .note-card-body ul { padding-left: 16px; margin: 8px 0; }
+  .note-card-body li { margin-bottom: 3px; }
+
+  .note-card-body strong { color: var(--accent); font-weight: 700; }
+  .note-card-body em { color: var(--accent3); font-style: normal; }
+
+  .exam-alert {
+    background: rgba(240, 74, 122, 0.1);
+    border: 1px solid rgba(240, 74, 122, 0.3);
+    border-radius: 2px;
+    padding: 8px 12px;
+    margin-top: 10px;
+    font-size: 0.68rem;
+    color: var(--accent2);
+    line-height: 1.6;
+  }
+
+  .exam-alert::before { content: '⚡ EXAM TIP: '; font-weight: 700; }
+
+  /* quick reference table */
+  .ref-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .ref-table th {
+    font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent3); padding: 6px 8px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .ref-table td {
+    font-size: 0.7rem; padding: 5px 8px; color: #a0acc0;
+    border-bottom: 1px solid rgba(30, 37, 64, 0.5);
+  }
+  .ref-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* hidden panel */
+  .panel-hidden { display: none; }
+
+  /* rotate hint */
+  .rotate-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    z-index: 10;
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 8px;
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
+  }
+
+  .view-btn {
+    padding: 6px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .view-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  .search-wrap {
+    padding: 12px 32px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-input {
+    width: 100%;
+    max-width: 400px;
+    background: #0d1018;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    padding: 8px 14px;
+    outline: none;
+    border-radius: 2px;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⬡ ANATOMY STUDY TOOL</h1>
+  <span>PAGES 1–34 · SKELETAL + MUSCULAR + JOINTS</span>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('skeleton')">3D SKELETON</button>
+  <button class="tab" onclick="switchTab('notes')">STUDY NOTES</button>
+  <button class="tab" onclick="switchTab('quiz')">QUICK QUIZ</button>
+</div>
+
+<!-- ===== SKELETON TAB ===== -->
+<div class="main" id="skeleton-view">
+  <div class="skeleton-canvas">
+    <div class="view-toggle">
+      <button class="view-btn active" onclick="setView('anterior')">ANTERIOR</button>
+      <button class="view-btn" onclick="setView('posterior')">POSTERIOR</button>
+      <button class="view-btn" onclick="setView('lateral')">LATERAL</button>
+    </div>
+
+    <!-- SVG SKELETON -->
+    <svg class="skel-svg" viewBox="0 0 320 720" xmlns="http://www.w3.org/2000/svg" id="skeleton-svg">
+
+      <!-- SKULL -->
+      <g id="bone-skull" class="bone-group" onclick="selectBone('skull')">
+        <ellipse class="bone-path" cx="160" cy="38" rx="38" ry="42"/>
+        <!-- Face -->
+        <ellipse class="bone-path" cx="160" cy="70" rx="24" ry="20"/>
+        <!-- Eye sockets -->
+        <ellipse cx="149" cy="65" rx="7" ry="5.5" fill="#0a0c10" opacity="0.7"/>
+        <ellipse cx="171" cy="65" rx="7" ry="5.5" fill="#0a0c10" opacity="0.7"/>
+        <!-- Nose -->
+        <path d="M156,73 Q160,80 164,73" fill="none" stroke="#0a0c10" stroke-width="1" opacity="0.5"/>
+        <text class="bone-label" x="205" y="42">CRANIUM</text>
+      </g>
+
+      <!-- MANDIBLE -->
+      <g id="bone-mandible" class="bone-group" onclick="selectBone('mandible')">
+        <path class="bone-path" d="M140,86 Q160,100 180,86 Q182,92 180,96 Q160,108 140,96 Q138,92 140,86Z"/>
+        <text class="bone-label" x="190" y="98">MANDIBLE</text>
+      </g>
+
+      <!-- CERVICAL SPINE -->
+      <g id="bone-cervical" class="bone-group" onclick="selectBone('cervical')">
+        <rect class="bone-path" x="152" y="106" width="16" height="8" rx="2"/>
+        <rect class="bone-path" x="152" y="116" width="16" height="8" rx="2"/>
+        <rect class="bone-path" x="152" y="126" width="16" height="8" rx="2"/>
+        <rect class="bone-path" x="152" y="136" width="16" height="8" rx="2"/>
+        <rect class="bone-path" x="152" y="146" width="16" height="8" rx="2"/>
+        <rect class="bone-path" x="152" y="156" width="16" height="8" rx="2"/>
+        <rect class="bone-path" x="152" y="166" width="16" height="8" rx="2"/>
+        <text class="bone-label" x="175" y="140">C1–C7</text>
+      </g>
+
+      <!-- CLAVICLES -->
+      <g id="bone-clavicle" class="bone-group" onclick="selectBone('clavicle')">
+        <path class="bone-path" d="M100,116 Q130,112 152,116" stroke-width="4" fill="none" stroke="#c8b89a" stroke-linecap="round"/>
+        <path class="bone-path" d="M168,116 Q190,112 220,116" stroke-width="4" fill="none" stroke="#c8b89a" stroke-linecap="round"/>
+        <text class="bone-label" x="55" y="112">CLAVICLE</text>
+      </g>
+
+      <!-- SCAPULAE -->
+      <g id="bone-scapula" class="bone-group" onclick="selectBone('scapula')">
+        <path class="bone-path" d="M88,120 L104,170 L120,150 Z"/>
+        <path class="bone-path" d="M232,120 L216,170 L200,150 Z"/>
+        <text class="bone-label" x="52" y="148">SCAPULA</text>
+      </g>
+
+      <!-- STERNUM -->
+      <g id="bone-sternum" class="bone-group" onclick="selectBone('sternum')">
+        <rect class="bone-path" x="148" y="118" width="24" height="14" rx="3"/>
+        <!-- Manubrium -->
+        <rect class="bone-path" x="150" y="133" width="20" height="42" rx="2"/>
+        <!-- Body -->
+        <rect class="bone-path" x="152" y="176" width="16" height="10" rx="2"/>
+        <!-- Xiphoid -->
+        <text class="bone-label" x="178" y="165">STERNUM</text>
+      </g>
+
+      <!-- RIBS -->
+      <g id="bone-ribs" class="bone-group" onclick="selectBone('ribs')">
+        <!-- Left ribs 1-7 (true) -->
+        <path class="bone-path" d="M152,122 Q124,118 104,126 Q98,130 100,136 Q120,130 148,133" fill="none" stroke="#c8b89a" stroke-width="3" stroke-linecap="round"/>
+        <path class="bone-path" d="M152,128 Q120,124 98,135 Q91,141 94,147 Q116,138 148,139" fill="none" stroke="#c8b89a" stroke-width="3" stroke-linecap="round"/>
+        <path class="bone-path" d="M152,134 Q118,132 96,145 Q89,153 92,159 Q115,148 148,145" fill="none" stroke="#c8b89a" stroke-width="2.5" stroke-linecap="round"/>
+        <path class="bone-path" d="M152,140 Q116,140 95,154 Q88,163 91,169 Q114,158 148,151" fill="none" stroke="#c8b89a" stroke-width="2.5" stroke-linecap="round"/>
+        <path class="bone-path" d="M152,146 Q114,148 94,163 Q87,173 90,179 Q112,167 148,157" fill="none" stroke="#c8b89a" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Right ribs (mirror) -->
+        <path class="bone-path" d="M168,122 Q196,118 216,126 Q222,130 220,136 Q200,130 172,133" fill="none" stroke="#c8b89a" stroke-width="3" stroke-linecap="round"/>
+        <path class="bone-path" d="M168,128 Q200,124 222,135 Q229,141 226,147 Q204,138 172,139" fill="none" stroke="#c8b89a" stroke-width="3" stroke-linecap="round"/>
+        <path class="bone-path" d="M168,134 Q202,132 224,145 Q231,153 228,159 Q205,148 172,145" fill="none" stroke="#c8b89a" stroke-width="2.5" stroke-linecap="round"/>
+        <path class="bone-path" d="M168,140 Q204,140 225,154 Q232,163 229,169 Q206,158 172,151" fill="none" stroke="#c8b89a" stroke-width="2.5" stroke-linecap="round"/>
+        <path class="bone-path" d="M168,146 Q206,148 226,163 Q233,173 230,179 Q208,167 172,157" fill="none" stroke="#c8b89a" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Floating ribs -->
+        <path class="bone-path" d="M152,158 Q115,163 98,175" fill="none" stroke="#c8b89a" stroke-width="2" stroke-linecap="round" stroke-dasharray="3,2"/>
+        <path class="bone-path" d="M168,158 Q205,163 222,175" fill="none" stroke="#c8b89a" stroke-width="2" stroke-linecap="round" stroke-dasharray="3,2"/>
+        <text class="bone-label" x="50" y="140">RIBS (12)</text>
+      </g>
+
+      <!-- THORACIC SPINE -->
+      <g id="bone-thoracic" class="bone-group" onclick="selectBone('thoracic')">
+        <rect class="bone-path" x="152" y="176" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="185" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="194" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="203" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="212" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="221" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="230" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="239" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="248" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="257" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="266" width="16" height="7" rx="1"/>
+        <rect class="bone-path" x="152" y="275" width="16" height="7" rx="1"/>
+        <text class="bone-label" x="175" y="230">T1–T12</text>
+      </g>
+
+      <!-- HUMERUS LEFT -->
+      <g id="bone-humerus" class="bone-group" onclick="selectBone('humerus')">
+        <rect class="bone-path" x="84" y="125" width="14" height="80" rx="6"/>
+        <ellipse class="bone-path" cx="91" cy="125" rx="10" ry="10"/>
+        <text class="bone-label" x="45" y="175">HUMERUS</text>
+        <!-- Right humerus -->
+        <rect class="bone-path" x="222" y="125" width="14" height="80" rx="6"/>
+        <ellipse class="bone-path" cx="229" cy="125" rx="10" ry="10"/>
+      </g>
+
+      <!-- RADIUS + ULNA LEFT -->
+      <g id="bone-forearm" class="bone-group" onclick="selectBone('forearm')">
+        <rect class="bone-path" x="80" y="207" width="8" height="66" rx="4"/>
+        <rect class="bone-path" x="90" y="207" width="8" height="66" rx="4"/>
+        <text class="bone-label" x="38" y="248">RADIUS/ULNA</text>
+        <!-- Right -->
+        <rect class="bone-path" x="222" y="207" width="8" height="66" rx="4"/>
+        <rect class="bone-path" x="232" y="207" width="8" height="66" rx="4"/>
+      </g>
+
+      <!-- HAND LEFT -->
+      <g id="bone-hand" class="bone-group" onclick="selectBone('hand')">
+        <rect class="bone-path" x="76" y="274" width="24" height="16" rx="3"/>
+        <rect class="bone-path" x="76" y="292" width="4" height="18" rx="2"/>
+        <rect class="bone-path" x="82" y="292" width="4" height="20" rx="2"/>
+        <rect class="bone-path" x="88" y="292" width="4" height="20" rx="2"/>
+        <rect class="bone-path" x="94" y="292" width="4" height="18" rx="2"/>
+        <text class="bone-label" x="34" y="295">CARPALS</text>
+        <!-- Right -->
+        <rect class="bone-path" x="220" y="274" width="24" height="16" rx="3"/>
+        <rect class="bone-path" x="220" y="292" width="4" height="18" rx="2"/>
+        <rect class="bone-path" x="226" y="292" width="4" height="20" rx="2"/>
+        <rect class="bone-path" x="232" y="292" width="4" height="20" rx="2"/>
+        <rect class="bone-path" x="238" y="292" width="4" height="18" rx="2"/>
+      </g>
+
+      <!-- LUMBAR SPINE -->
+      <g id="bone-lumbar" class="bone-group" onclick="selectBone('lumbar')">
+        <rect class="bone-path" x="150" y="284" width="20" height="9" rx="2"/>
+        <rect class="bone-path" x="150" y="295" width="20" height="9" rx="2"/>
+        <rect class="bone-path" x="150" y="306" width="20" height="9" rx="2"/>
+        <rect class="bone-path" x="150" y="317" width="20" height="9" rx="2"/>
+        <rect class="bone-path" x="150" y="328" width="20" height="9" rx="2"/>
+        <text class="bone-label" x="175" y="312">L1–L5</text>
+      </g>
+
+      <!-- PELVIS / ILIUM -->
+      <g id="bone-pelvis" class="bone-group" onclick="selectBone('pelvis')">
+        <path class="bone-path" d="M160,338 Q118,334 104,358 Q96,376 110,390 Q134,400 160,400 Q186,400 210,390 Q224,376 216,358 Q202,334 160,338Z"/>
+        <ellipse cx="160" cy="338" rx="16" ry="10" class="bone-path"/>
+        <!-- Acetabulum -->
+        <circle cx="124" cy="382" r="9" class="bone-path" fill="#0d1018" stroke="#c8b89a" stroke-width="1.5"/>
+        <circle cx="196" cy="382" r="9" class="bone-path" fill="#0d1018" stroke="#c8b89a" stroke-width="1.5"/>
+        <text class="bone-label" x="55" y="362">PELVIS</text>
+        <text class="bone-label" x="55" y="373">(ILIUM/ISCHIUM</text>
+        <text class="bone-label" x="55" y="384">/PUBIS)</text>
+      </g>
+
+      <!-- SACRUM / COCCYX -->
+      <g id="bone-sacrum" class="bone-group" onclick="selectBone('sacrum')">
+        <path class="bone-path" d="M148,338 L172,338 L176,380 L160,392 L144,380Z"/>
+        <path class="bone-path" d="M155,392 L165,392 L162,404 L158,404Z"/>
+        <text class="bone-label" x="182" y="362">SACRUM</text>
+        <text class="bone-label" x="182" y="374">+ COCCYX</text>
+      </g>
+
+      <!-- FEMUR -->
+      <g id="bone-femur" class="bone-group" onclick="selectBone('femur')">
+        <!-- Left femur -->
+        <path class="bone-path" d="M124,382 Q116,400 118,440 L128,440 Q134,400 132,382Z"/>
+        <rect class="bone-path" x="116" y="440" width="18" height="90" rx="8"/>
+        <ellipse class="bone-path" cx="125" cy="533" rx="14" ry="8"/>
+        <text class="bone-label" x="68" y="488">FEMUR</text>
+        <!-- Right femur -->
+        <path class="bone-path" d="M196,382 Q204,400 202,440 L188,440 Q186,400 188,382Z"/>
+        <rect class="bone-path" x="186" y="440" width="18" height="90" rx="8"/>
+        <ellipse class="bone-path" cx="195" cy="533" rx="14" ry="8"/>
+      </g>
+
+      <!-- PATELLA -->
+      <g id="bone-patella" class="bone-group" onclick="selectBone('patella')">
+        <ellipse class="bone-path" cx="125" cy="540" rx="8" ry="9"/>
+        <ellipse class="bone-path" cx="195" cy="540" rx="8" ry="9"/>
+        <text class="bone-label" x="68" y="542">PATELLA</text>
+      </g>
+
+      <!-- TIBIA + FIBULA -->
+      <g id="bone-tibia" class="bone-group" onclick="selectBone('tibia')">
+        <!-- Left tibia -->
+        <rect class="bone-path" x="118" y="550" width="14" height="100" rx="6"/>
+        <!-- Left fibula -->
+        <rect class="bone-path" x="133" y="552" width="7" height="96" rx="4"/>
+        <text class="bone-label" x="62" y="598">TIBIA /</text>
+        <text class="bone-label" x="62" y="610">FIBULA</text>
+        <!-- Right tibia -->
+        <rect class="bone-path" x="188" y="550" width="14" height="100" rx="6"/>
+        <!-- Right fibula -->
+        <rect class="bone-path" x="180" y="552" width="7" height="96" rx="4"/>
+      </g>
+
+      <!-- FOOT -->
+      <g id="bone-foot" class="bone-group" onclick="selectBone('foot')">
+        <!-- Left foot -->
+        <rect class="bone-path" x="110" y="650" width="36" height="16" rx="4"/>
+        <rect class="bone-path" x="112" y="666" width="5" height="14" rx="2"/>
+        <rect class="bone-path" x="119" y="666" width="5" height="16" rx="2"/>
+        <rect class="bone-path" x="126" y="666" width="5" height="16" rx="2"/>
+        <rect class="bone-path" x="133" y="666" width="5" height="14" rx="2"/>
+        <rect class="bone-path" x="140" y="666" width="4" height="12" rx="2"/>
+        <!-- Right foot -->
+        <rect class="bone-path" x="174" y="650" width="36" height="16" rx="4"/>
+        <rect class="bone-path" x="176" y="666" width="5" height="14" rx="2"/>
+        <rect class="bone-path" x="183" y="666" width="5" height="16" rx="2"/>
+        <rect class="bone-path" x="190" y="666" width="5" height="16" rx="2"/>
+        <rect class="bone-path" x="197" y="666" width="5" height="14" rx="2"/>
+        <rect class="bone-path" x="204" y="666" width="4" height="12" rx="2"/>
+        <text class="bone-label" x="78" y="672">TARSALS/</text>
+        <text class="bone-label" x="78" y="684">METATARSALS</text>
+      </g>
+    </svg>
+
+    <div class="rotate-hint">↑ CLICK ANY BONE TO LEARN</div>
+  </div>
+
+  <!-- INFO PANEL -->
+  <div class="info-panel">
+    <div class="info-header">
+      <div class="bone-name" id="panel-name">SELECT A BONE</div>
+      <div class="bone-category" id="panel-category">CLICK ON THE SKELETON TO BEGIN</div>
+    </div>
+    <div class="info-body" id="panel-body">
+      <div class="placeholder-msg">
+        <span class="icon">🦴</span>
+        Click any highlighted bone on the skeleton to see your study notes for that structure.
+        <br><br>
+        All content is from your PDF (pages 1–34).
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NOTES TAB ===== -->
+<div class="main panel-hidden" id="notes-view">
+  <div id="notes-scroll" style="flex:1;overflow-y:auto;padding:32px;scrollbar-width:thin;scrollbar-color:#1e2540 transparent;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px;max-width:1400px;margin:auto;">
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">01</span><h3>Anatomical Terminology</h3></div>
+      <div class="note-card-body">
+        <p><strong>Anatomical position:</strong> Palms forward (supinated). This is the reference for ALL directional terms.</p>
+        <ul>
+          <li><strong>Superior/Inferior</strong> (cranial/caudal) — above/below</li>
+          <li><strong>Anterior/Posterior</strong> (ventral/dorsal) — front/back</li>
+          <li><strong>Medial/Lateral</strong> — toward/away from midline</li>
+          <li><strong>Proximal/Distal</strong> — toward/away from origin</li>
+          <li><strong>Superficial/Deep</strong> — toward/away from surface</li>
+          <li><strong>Ipsilateral</strong> — same side | <strong>Contralateral</strong> — opposite side</li>
+          <li><strong>Plantar</strong> = bottom of foot | <strong>Palmar</strong> = palm side of hand</li>
+        </ul>
+        <p><strong>Body planes:</strong> Median (sagittal) = flexion/extension; Frontal (coronal) = abduction/adduction; Transverse = rotation</p>
+        <div class="exam-alert">Flexion is forward EXCEPT for the knee. Abduction of thumb breaks the rules (occurs in sagittal plane).</div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">02</span><h3>Skeletal System Overview</h3></div>
+      <div class="note-card-body">
+        <p><strong>Axial skeleton</strong> = skull + cervical vertebrae + ribs + sternum + thoracic/lumbar vertebrae + sacrum (your midline skeleton)</p>
+        <p><strong>Appendicular skeleton</strong> = limbs + pectoral girdle (scapula, clavicle) + pelvic girdle</p>
+        <p style="margin-top:8px"><strong>Functions of bone:</strong></p>
+        <ul>
+          <li>Protection of vital structures</li>
+          <li>Support for body and cavities</li>
+          <li>Mechanical basis for movement</li>
+          <li>Mineral storage (calcium + phosphorus)</li>
+          <li>Blood cell production (medullary cavity)</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Periosteum</strong> surrounds bone. <strong>Perichondrium</strong> surrounds cartilage (except articular cartilage).</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">03</span><h3>Bone & Cartilage Types</h3></div>
+      <div class="note-card-body">
+        <p><strong>Bone types:</strong></p>
+        <ul>
+          <li><em>Compact</em> — dense, outer layer</li>
+          <li><em>Spongy/Trabecular/Cancellous</em> — has spaces, lightweight, where blood cells form</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Bone classifications:</strong></p>
+        <ul>
+          <li><em>Long</em> — tubular (humerus, phalanges)</li>
+          <li><em>Short</em> — cuboidal — ankle (tarsus) & wrist (carpus) ONLY</li>
+          <li><em>Flat</em> — protective (cranium, sternum, ribs)</li>
+          <li><em>Irregular</em> — face, vertebrae</li>
+          <li><em>Sesamoid</em> — within tendon (patella)</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Cartilage:</strong> Avascular (no blood supply), semi-rigid, resilient. Articular cartilage lines synovial joints. More present in younger people.</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">04</span><h3>Bone Markings (Fig 1.6)</h3></div>
+      <div class="note-card-body">
+        <table class="ref-table">
+          <tr><th>Term</th><th>Definition + Example</th></tr>
+          <tr><td><strong>Condyle</strong></td><td>Rounded articular area (femoral condyles)</td></tr>
+          <tr><td><strong>Epicondyle</strong></td><td>Eminence above condyle (humerus)</td></tr>
+          <tr><td><strong>Crest</strong></td><td>Ridged bone (iliac crest)</td></tr>
+          <tr><td><strong>Facet</strong></td><td>Smooth flat area for articulation (vertebral)</td></tr>
+          <tr><td><strong>Foramen</strong></td><td>Passage through bone (obturator foramen)</td></tr>
+          <tr><td><strong>Fossa</strong></td><td>Hollow/depressed area (infraspinous fossa)</td></tr>
+          <tr><td><strong>Malleolus</strong></td><td>Rounded prominence (lateral malleolus of fibula)</td></tr>
+          <tr><td><strong>Trochanter</strong></td><td>Large blunt elevation (greater trochanter of femur)</td></tr>
+          <tr><td><strong>Tubercle</strong></td><td>Small raised eminence (greater tubercle of humerus)</td></tr>
+          <tr><td><strong>Tuberosity</strong></td><td>Large rounded elevation (ischial tuberosity)</td></tr>
+          <tr><td><strong>Process</strong></td><td>Projecting spine-like part (spinous process)</td></tr>
+          <tr><td><strong>Spine</strong></td><td>Thorn-like process (spine of scapula)</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">05</span><h3>Bone Development</h3></div>
+      <div class="note-card-body">
+        <ul>
+          <li><strong>Diaphysis</strong> = shaft of bone</li>
+          <li><strong>Epiphysis</strong> = ends of bone</li>
+          <li><strong>Metaphysis</strong> = flared region between</li>
+          <li><strong>Epiphyseal plate</strong> (growth plate) = lays down new bone; when it seals, you stop growing</li>
+        </ul>
+        <div class="exam-alert">Fracture through the epiphyseal plate in a child can affect growth!</div>
+        <p style="margin-top:8px"><strong>Ossification types (POST-MIDTERM):</strong> Intramembranous (flat bones, clavicle, mandible) vs. Endochondral (mesenchyme → cartilage → bone)</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">06</span><h3>Classification of Joints</h3></div>
+      <div class="note-card-body">
+        <p><strong>FIBROUS JOINTS</strong> (no movement → connected by fibrous tissue):</p>
+        <ul>
+          <li><em>Suture</em> — between skull bones (like stitches)</li>
+          <li><em>Gomphosis</em> — peg in socket = teeth ("sounds like gum")</li>
+          <li><em>Syndesmosis</em> — between ulna & radius (ligament)</li>
+        </ul>
+        <p style="margin-top:8px"><strong>CARTILAGINOUS JOINTS:</strong></p>
+        <ul>
+          <li><em>Synchondrosis</em> (Primary) — hyaline cartilage (epiphyseal growth)</li>
+          <li><em>Symphysis</em> (Secondary) — fibrocartilaginous (pubic symphysis, intervertebral discs)</li>
+        </ul>
+        <p style="margin-top:8px"><strong>SYNOVIAL JOINTS</strong> (most common, free movement):</p>
+        <p>Joint cavity filled with synovial fluid. Form most joints of limbs (knuckles, hips, elbows). Lined with articular (hyaline) cartilage.</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">07</span><h3>Types of Synovial Joints</h3></div>
+      <div class="note-card-body">
+        <table class="ref-table">
+          <tr><th>Type</th><th>Motion</th><th>Example</th></tr>
+          <tr><td><strong>Pivot</strong></td><td>Rotation only</td><td>C1–C2 (Atlas-Axis), pronation/supination</td></tr>
+          <tr><td><strong>Plane</strong></td><td>Gliding/sliding (uniaxial)</td><td>Acromioclavicular, facet joints, carpals</td></tr>
+          <tr><td><strong>Hinge</strong></td><td>Flexion/extension (uniaxial)</td><td>Elbow joint</td></tr>
+          <tr><td><strong>Saddle</strong></td><td>2 planes (biaxial), rotation limited</td><td>Thumb carpometacarpal joint</td></tr>
+          <tr><td><strong>Condyloid</strong></td><td>Flex/ext + ab/adduct (biaxial)</td><td>Metacarpophalangeal joints</td></tr>
+          <tr><td><strong>Ball & Socket</strong></td><td>Multiaxial (all planes)</td><td>Hip, glenohumeral (shoulder)</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">08</span><h3>Thoracic Cage</h3></div>
+      <div class="note-card-body">
+        <ul>
+          <li>12 pairs of ribs + 12 thoracic vertebrae + sternum + costal cartilages</li>
+          <li><strong>True ribs (1–7)</strong>: attach directly to sternum via own cartilage</li>
+          <li><strong>False ribs (8–10)</strong>: attach indirectly via rib 7's cartilage</li>
+          <li><strong>Floating ribs (11–12)</strong>: end in abdominal musculature, no sternal connection</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Sternum:</strong> Manubrium (top, T3–T4 level) + Body + Xiphoid process</p>
+        <p><strong>Sternal angle (of Louis)</strong> = junction of manubrium + body, at level of 2nd costal cartilage & T4–T5 disc. It is a SYMPHYSIS.</p>
+        <p><strong>Jugular notch</strong> = suprasternal notch (superior border of manubrium)</p>
+        <div class="exam-alert">Ribs 11 & 12 have no neck or tubercle (no costotransverse joint). Ribs 1, 10, 11, 12 have only ONE facet on head.</div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">09</span><h3>Vertebral Column</h3></div>
+      <div class="note-card-body">
+        <p><strong>33 vertebrae total:</strong> 7 cervical + 12 thoracic + 5 lumbar + 5 sacral (fused) + 4 coccygeal (fused)</p>
+        <p style="margin-top:8px"><strong>Curvatures:</strong></p>
+        <ul>
+          <li><em>Primary (kyphotic)</em> = thoracic + sacrum (present from birth)</li>
+          <li><em>Secondary (lordotic)</em> = cervical + lumbar (develop after birth)</li>
+          <li><strong>Kyphosis</strong> = humpback | <strong>Lordosis</strong> = sway back | <strong>Scoliosis</strong> = lateral S-shaped shift</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Vertebral structure:</strong> Body + Vertebral arch (pedicles + laminae) + Spinous process + Transverse processes + Articular processes (2 superior, 2 inferior)</p>
+        <p>Intervertebral foramen = where spinal nerves exit. Facet joints (zygapophyseal) = plane synovial joints.</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">10</span><h3>Vertebrae by Region</h3></div>
+      <div class="note-card-body">
+        <p><strong>Cervical (C3–C7):</strong> Small body with uncinate processes, transverse foramen (C1–C6 for vertebral arteries), bifid spinous process. C7 = vertebra prominens.</p>
+        <p><strong>C1 (Atlas)</strong> = ring shape, no body, has anterior/posterior arches, lateral masses. <strong>C2 (Axis)</strong> = has Dens (odontoid process) — pivot joint.</p>
+        <p style="margin-top:8px"><strong>Thoracic:</strong> Has costal facets (demifacets) on body for rib articulation, transverse costal facets. Long spinous process.</p>
+        <p><strong>Lumbar:</strong> Massive kidney-shaped body, large vertebral foramen, long/slender transverse processes, thick short spinous process.</p>
+        <p><strong>Sacrum:</strong> Base (superior), apex (inferior), sacral promontory, foramina, hiatus (S4–S5 no lamina). Medial crest = fused spinous; intermediate = fused articular; lateral = fused transverse.</p>
+        <div class="exam-alert">NO intervertebral disc between C1 and C2. Atlanto-occipital joint = nod "yes". Atlanto-axial = shake "no".</div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">11</span><h3>Vertebral Ligaments</h3></div>
+      <div class="note-card-body">
+        <table class="ref-table">
+          <tr><th>Ligament</th><th>Location / Function</th></tr>
+          <tr><td><strong>Anterior longitudinal</strong></td><td>Front of vertebral bodies — prevents hyperextension</td></tr>
+          <tr><td><strong>Posterior longitudinal</strong></td><td>Back of vertebral bodies — prevents hyperflexion</td></tr>
+          <tr><td><strong>Ligamentum flava</strong></td><td>Connects laminae — prevents flexion</td></tr>
+          <tr><td><strong>Interspinous</strong></td><td>Between spinous processes — prevents flexion</td></tr>
+          <tr><td><strong>Supraspinous</strong></td><td>Tips of spinous processes — strong</td></tr>
+          <tr><td><strong>Nuchal ligament</strong></td><td>Continuation of supraspinous → external occipital protuberance</td></tr>
+          <tr><td><strong>Transverse ligament</strong></td><td>Holds dens of axis — holds C1 lateral masses</td></tr>
+          <tr><td><strong>Alar ligament</strong></td><td>Prevents excessive rotation — "check" ligament</td></tr>
+        </table>
+        <p style="margin-top:8px"><strong>IV Discs:</strong> Anulus fibrosus (outer lamellae) + Nucleus pulposus (gel core). They are symphyses (secondary cartilaginous). Avascular.</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">12</span><h3>Pelvis & Pelvic Girdle</h3></div>
+      <div class="note-card-body">
+        <p><strong>Pelvic girdle</strong> = ring of 3 bones: 2 innominate bones + sacrum</p>
+        <p><strong>Innominate bone</strong> = ilium + ischium + pubis (fused)</p>
+        <ul>
+          <li>Pelvic inlet = superior pelvic aperture</li>
+          <li>Pelvic outlet = inferior pelvic aperture</li>
+          <li>Greater (false) pelvis = above the inlet (big upper part)</li>
+          <li>Lesser (true) pelvis = within/below inlet</li>
+          <li>Ischial tuberosity = "sit bones"</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Key Joints:</strong> Sacroiliac (compound: synovial plane + fibrous/syndesmosis), Pubic symphysis (secondary cartilaginous)</p>
+        <p><strong>Greater sciatic foramen</strong> = piriformis muscle + sciatic nerve pass through</p>
+        <p><strong>Lesser sciatic foramen</strong> = tendon of obturator internus passes through</p>
+        <div class="exam-alert">Sacrotuberous + sacrospinous ligaments = form lesser sciatic foramen. Sacrospinous alone = forms greater sciatic foramen.</div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">13</span><h3>Muscular System Basics</h3></div>
+      <div class="note-card-body">
+        <p><strong>Myology:</strong> Muscles can only PULL, never push. Under voluntary control.</p>
+        <p style="margin-top:6px"><strong>Tendon</strong> = muscle to bone | <strong>Ligament</strong> = bone to bone (prevents unwanted movement)</p>
+        <p style="margin-top:8px"><strong>Muscle roles:</strong></p>
+        <ul>
+          <li><em>Prime mover (Agonist)</em> = main muscle for movement (concentric)</li>
+          <li><em>Antagonist</em> = opposes prime mover, relaxes as it contracts (smooth movement)</li>
+          <li><em>Synergist/Helper</em> = assists prime mover, prevents unwanted joint movement</li>
+          <li><em>Stabilizer/Fixator</em> = steadies proximal part during distal movement</li>
+        </ul>
+        <p style="margin-top:8px">Biceps (agonist for elbow flexion) vs. Triceps (antagonist)</p>
+        <div class="exam-alert">Structural unit = muscle fiber. Functional unit = motor unit (motor neuron + fibers it controls). Large motor units = gross movements (leg). Small = fine movements (eye).</div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">14</span><h3>Muscle Contractions</h3></div>
+      <div class="note-card-body">
+        <ul>
+          <li><strong>Reflexive</strong> = automatic (not voluntary) — knee jerk, diaphragm breathing</li>
+          <li><strong>Tonic</strong> = slight sustained contraction (muscle tone) — maintains posture, no movement</li>
+          <li><strong>Isometric</strong> = muscle length same, tension increases, NO movement (deltoid holding arm in abduction)</li>
+          <li><strong>Isotonic</strong> = muscle changes length → produces movement</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Muscle layers (deep to superficial):</strong></p>
+        <ul>
+          <li><em>Endomysium</em> — around single muscle fiber</li>
+          <li><em>Perimysium</em> — around fascicles</li>
+          <li><em>Epimysium</em> — superficial outer layer</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">15</span><h3>Deep Back Muscles</h3></div>
+      <div class="note-card-body">
+        <p>All innervated by <strong>posterior rami</strong> of spinal nerves. Enclosed by <strong>thoracolumbar fascia</strong> (3 layers).</p>
+        <p style="margin-top:8px"><strong>Superficial layer:</strong> <em>Splenius</em> — runs ipsilateral</p>
+        <ul>
+          <li>Splenius cervicis → cervical transverse processes</li>
+          <li>Splenius capitis → mastoid process of skull</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Intermediate (Erector Spinae) — "I Love Spaghetti":</strong></p>
+        <ul>
+          <li><em>I</em>liocostalis | <em>L</em>ongissimus (to mastoid) | <em>S</em>pinalis (to spinous processes)</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Deep layer (Transversospinales):</strong></p>
+        <ul>
+          <li>Semispinalis (contralateral, bulge in neck)</li>
+          <li>Multifidus (contralateral) | Rotatores (very small)</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Suboccipital muscles (4):</strong> Rectus capitis posterior major/minor, Obliquus capitis superior/inferior → form suboccipital triangle (contains vertebral artery + suboccipital nerve)</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">16</span><h3>Lower Limb — Bones</h3></div>
+      <div class="note-card-body">
+        <p><strong>Regions:</strong> Gluteal → Femoral → Knee (genus) → Leg (cruris) → Ankle (talocrural) → Foot (pedis)</p>
+        <p style="margin-top:8px"><em>Your thigh ≠ your leg!</em> Leg = tibia + fibula region only.</p>
+        <ul>
+          <li><strong>Femur</strong> = longest/heaviest bone, articulates with tibia (NOT fibula directly)</li>
+          <li><strong>Patella</strong> = sesamoid bone, formed after birth, in quadriceps tendon → becomes patellar ligament → tibial tuberosity</li>
+          <li><strong>Tibia</strong> = weight-bearing (shin bone). Gerdy's tubercle = IT band attachment</li>
+          <li><strong>Fibula</strong> = non-weight bearing, lateral, for muscle attachment. Syndesmosis with tibia.</li>
+          <li><strong>Talus</strong> = only foot bone that articulates with leg bones (tibia + fibula). No muscles/tendons attach directly.</li>
+          <li><strong>Calcaneus</strong> = heel bone</li>
+        </ul>
+        <div class="exam-alert">Ligament of head of femur = transmits artery ONLY (no stabilization role). Tibia is weight-bearing; fibula is NOT.</div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">17</span><h3>Hip, Knee & Ankle Joints</h3></div>
+      <div class="note-card-body">
+        <p><strong>Hip joint:</strong> Ball & socket. Acetabular labrum (fibrocartilage). Hip ligaments all prevent hyperextension: Iliofemoral (Y-shaped), Ischiofemoral, Pubofemoral (resists abduction).</p>
+        <p style="margin-top:8px"><strong>Knee joint:</strong> Modified hinge joint. Articulations: 2 femorotibial + 1 femoropatellar (NOT fibula).</p>
+        <ul>
+          <li>MCL resists valgus (lateral → medial force). If MCL injured → meniscus likely injured too.</li>
+          <li>LCL resists varus (medial → lateral)</li>
+          <li>ACL = weaker, anterior tibia → posterior femur. Prevents hyperextension.</li>
+          <li>PCL = stronger, prevents hyperflexion. Opposite of ACL.</li>
+          <li>Medial meniscus = C-shaped | Lateral meniscus = circular</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Ankle (Talocrural):</strong> Only hinge movement. Talus articulates w/ tibia + fibula. Dorsiflexion = more stable (talus wider anteriorly).</p>
+        <p><strong>Lateral ligaments</strong> (limit inversion): Anterior/Posterior talofibular + Calcaneofibular</p>
+        <p><strong>Medial (deltoid) ligament</strong> (limits eversion): Tibionavicular, Tibiocalcaneal, Tibiotalar</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">18</span><h3>Lower Limb Muscles</h3></div>
+      <div class="note-card-body">
+        <p><strong>Compartments of thigh:</strong></p>
+        <ul>
+          <li><em>Anterior</em> (extensors) = femoral nerve</li>
+          <li><em>Medial</em> (adductors) = obturator nerve</li>
+          <li><em>Posterior</em> (flexors) = tibial division of sciatic nerve</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Quadriceps:</strong> Rectus femoris + Vastus lateralis/medialis/intermedius → knee extension via patellar ligament</p>
+        <p><strong>Hamstrings (sit bones → fibula/tibia):</strong> Biceps femoris (long + short head), Semitendinosus, Semimembranosus → knee flexion + hip extension</p>
+        <p><strong>Short head of biceps femoris</strong> = only hamstring that does NOT cross hip</p>
+        <p style="margin-top:8px"><strong>Pes Anserinus</strong> (medial knee): SGT = Sartorius + Gracilis + Semitendinosus</p>
+        <p><strong>Gluteus maximus</strong> = sit-to-stand, external rotation, extends hip → inferior gluteal nerve</p>
+        <p><strong>Gluteus medius/minimus</strong> = abduct + internally rotate hip → superior gluteal nerve</p>
+        <div class="exam-alert">Gracilis = only adductor to cross BOTH knee and hip joints.</div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">19</span><h3>Leg & Foot Compartments</h3></div>
+      <div class="note-card-body">
+        <p><strong>Leg compartments:</strong></p>
+        <ul>
+          <li><em>Anterior</em> (Dorsiflexors) = deep fibular nerve — Tibialis anterior, Ext. digitorum longus, Ext. hallucis longus, Fibularis tertius</li>
+          <li><em>Lateral</em> (Everters) = superficial fibular nerve — Fibularis brevis (5th metatarsal), Fibularis longus (1st metatarsal + medial cuneiform)</li>
+          <li><em>Posterior-Superficial</em> = Gastrocnemius (crosses knee), Soleus (better plantar flexor), Plantaris → calcaneal tendon</li>
+          <li><em>Posterior-Deep</em> (TOM DICK HARRY mnemonic) = Tibialis posterior + Flexor digitorum longus + Flexor hallucis longus</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Popliteus</strong> = unlocks fully extended knee (rotation)</p>
+        <p><strong>FHL</strong> starts laterally and ends medially; <strong>FDL</strong> = vice versa (they cross)</p>
+        <p style="margin-top:8px"><strong>Foot layers (sole):</strong> Layer 1 (superficial): Abductor hallucis, Flexor digitorum brevis, Abductor digiti minimi. Layer 2: Quadratus plantae + Lumbricals. Layer 3: Flexor hallucis brevis (has sesamoid bones!), Adductor hallucis, Flexor digiti minimi brevis. Layer 4: Plantar interossei (PAD) + Dorsal interossei (DAB)</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-card-header"><span class="num">20</span><h3>Spinal Cord & Nervous System</h3></div>
+      <div class="note-card-body">
+        <p><strong>Spinal cord:</strong> Conus medullaris ends at L1/L2. Cauda equina = nerve roots below. Filum terminale = anchors cord.</p>
+        <p><strong>31 pairs of spinal nerves:</strong> 8 cervical, 12 thoracic, 5 lumbar, 5 sacral, 1 coccygeal</p>
+        <ul>
+          <li><strong>Afferent fibers</strong> = sensory (posterior/dorsal horn) → to brain</li>
+          <li><strong>Efferent fibers</strong> = motor (anterior/ventral horn) → to muscles</li>
+        </ul>
+        <p style="margin-top:8px"><strong>Meninges (deep → superficial):</strong></p>
+        <ul>
+          <li>Pia mater (innermost)</li>
+          <li>Arachnoid mater (middle, spiderweb-like)</li>
+          <li>Dura mater (outermost, toughest)</li>
+        </ul>
+        <p><strong>CSF</strong> = in subarachnoid space (between pia and arachnoid). Allows brain/cord to float.</p>
+        <p style="margin-top:8px"><strong>Peripheral nerve coverings:</strong> Endoneurium (single axon) → Perineurium (fascicle) → Epineurium (whole nerve)</p>
+        <p><strong>Myelin sheath</strong> = made by oligodendrocytes (CNS) / Schwann cells (PNS). Increases signal speed.</p>
+        <div class="exam-alert">Posterior rami = supply deep back muscles + overlying skin. Anterior rami = supply everything else.</div>
+      </div>
+    </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== QUIZ TAB ===== -->
+<div class="main panel-hidden" id="quiz-view">
+  <div style="flex:1;overflow-y:auto;padding:40px;scrollbar-width:thin;scrollbar-color:#1e2540 transparent;">
+    <div style="max-width:700px;margin:auto;">
+      <div style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--accent);margin-bottom:8px;">MIDTERM QUICK QUIZ</div>
+      <div style="font-size:0.7rem;color:var(--muted);margin-bottom:32px;letter-spacing:0.1em;">TAP A QUESTION TO REVEAL THE ANSWER</div>
+      <div id="quiz-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== BONE DATA =====
+const boneData = {
+  skull: {
+    name: "CRANIUM / SKULL",
+    category: "AXIAL SKELETON",
+    sections: [
+      { title: "OVERVIEW", content: "The skull encloses and protects the brain. The calvaria (cranial vault) is formed by flat bones. The skull articulates with C1 (Atlas) at the atlanto-occipital joint (condyloid synovial joint — nod 'yes')." },
+      { title: "BONE TYPE", content: "Flat bones → protective function. Part of axial skeleton." },
+      { title: "KEY MARKINGS", tags: [
+        {text:"External occipital protuberance", type:"joint"},
+        {text:"Foramen magnum", type:"nerve"},
+        {text:"Mastoid process (attachment for Splenius capitis)", type:"muscle"}
+      ]},
+      { title: "JOINTS", content: "Sutures between skull bones = fibrous joints (suture type). Atlanto-occipital = condyloid synovial joint." },
+      { title: "EXAM NOTES", exam: true, content: "Nuchal ligament attaches to external occipital protuberance. Transverse ligament holds C1 to skull. Alar ligaments prevent excessive rotation at this level." }
+    ]
+  },
+  mandible: {
+    name: "MANDIBLE",
+    category: "AXIAL SKELETON · FACIAL BONE",
+    sections: [
+      { title: "OVERVIEW", content: "The lower jaw. An irregular bone. Connected to the skull via the temporomandibular joint (TMJ). The teeth sit in gomphosis joints (fibrous — peg-in-socket)." },
+      { title: "BONE TYPE", content: "Irregular bone. Part of axial skeleton (facial)." },
+      { title: "EXAM NOTES", exam: true, content: "Gomphosis = fibrous joint for teeth. 'Sounds like gum' — helpful mnemonic!" }
+    ]
+  },
+  cervical: {
+    name: "CERVICAL VERTEBRAE (C1–C7)",
+    category: "AXIAL SKELETON · VERTEBRAL COLUMN",
+    sections: [
+      { title: "TYPICAL (C3–C7)", content: "Small body with uncinate processes (uncovertebral joints). Bifid spinous process. Transverse foramen (C1–C6) for vertebral arteries. C7 = vertebra prominens (large non-bifid spinous process)." },
+      { title: "ATLAS (C1)", content: "Ring-shaped, NO vertebral body. Has anterior & posterior arches + lateral masses. Articulates with occipital condyles (atlanto-occipital joint = nod YES)." },
+      { title: "AXIS (C2)", content: "Has the Dens (odontoid process) — acts as a pivot for C1. Atlanto-axial joint = rotation (say NO). Transverse ligament holds dens." },
+      { title: "CURVATURE", content: "Cervical = secondary (lordotic) curve — develops after birth when baby lifts head." },
+      { title: "EXAM NOTES", exam: true, content: "NO intervertebral disc between C1 and C2. Vertebral arteries run through transverse foramina C1–C6 (NOT C7). Alar ligaments = check ligaments preventing excessive rotation." }
+    ]
+  },
+  thoracic: {
+    name: "THORACIC VERTEBRAE (T1–T12)",
+    category: "AXIAL SKELETON · VERTEBRAL COLUMN",
+    sections: [
+      { title: "CHARACTERISTICS", content: "Has costal facets (demifacets) on bodies for rib head articulation. Transverse processes have transverse costal facets for tubercle of ribs. Long spinous processes pointing downward. Superior articular = posteriorly; inferior = anteriorly." },
+      { title: "CURVATURE", content: "Primary (kyphotic) curve — present from birth. Thoracic kyphosis. Excessive = 'humpback' or Dowager's hump." },
+      { title: "EXAM NOTES", exam: true, content: "Demifacets appear ONLY on thoracic vertebrae. Atypical thoracic vertebrae (T1, T10–T12) have a single whole costal facet instead of demifacets. Thoracic movement limited because of rib cage." }
+    ]
+  },
+  clavicle: {
+    name: "CLAVICLE",
+    category: "APPENDICULAR SKELETON · PECTORAL GIRDLE",
+    sections: [
+      { title: "OVERVIEW", content: "S-shaped bone connecting sternum to scapula. Forms the pectoral (shoulder) girdle with scapula. Part of appendicular skeleton." },
+      { title: "JOINTS", content: "Sternoclavicular joint = synovial SADDLE joint (sternal/medial end of clavicle). Acromioclavicular (AC) joint = plane synovial joint." },
+      { title: "EXAM NOTES", exam: true, content: "Clavicular notch on manubrium accepts the clavicle. Sternal angle (Louis) is at level of 2nd costal cartilage — helpful landmark." }
+    ]
+  },
+  scapula: {
+    name: "SCAPULA",
+    category: "APPENDICULAR SKELETON · PECTORAL GIRDLE",
+    sections: [
+      { title: "OVERVIEW", content: "Triangular flat bone at posterior thorax. Part of appendicular skeleton (pectoral/shoulder girdle). The glenohumeral (shoulder) joint = ball & socket between glenoid fossa of scapula and head of humerus." },
+      { title: "KEY MARKINGS", content: "Spine of scapula, Acromion process (articulates with clavicle), Infraspinous fossa (Fossa = hollow where muscle attaches)." },
+      { title: "EXAM NOTES", exam: true, content: "Infraspinous fossa = example of a Fossa marking. Glenohumeral joint = ball & socket = multiaxial movement." }
+    ]
+  },
+  sternum: {
+    name: "STERNUM",
+    category: "AXIAL SKELETON · THORACIC CAGE",
+    sections: [
+      { title: "PARTS", content: "1. Manubrium (top, T3–T4 level) — has jugular notch (suprasternal notch) superiorly + clavicular notches.\n2. Body — articulates with ribs 2–7.\n3. Xiphoid process (inferior tip)." },
+      { title: "STERNAL ANGLE (ANGLE OF LOUIS)", content: "Manubrium-body junction. Level of 2nd costal cartilage. Level of T4–T5 IV disc. This is a SYMPHYSIS (secondary cartilaginous). Important clinical landmark." },
+      { title: "JOINTS", content: "Rib 1-manubrium = synchondrosis (primary cartilaginous). Ribs 2–7 to sternum = synovial plane. Manubriosternal = symphysis. Xiphisternal = synchondrosis." },
+      { title: "BONE TYPE", content: "Flat bone — protective function (axial skeleton)." },
+      { title: "EXAM NOTES", exam: true, content: "Sternal angle = at 2nd rib = T4-T5 level. Rib 1 articulates with manubrium via synchondrosis (primary cartilaginous — fused). Ribs 2-7 = synovial plane joints with sternum." }
+    ]
+  },
+  ribs: {
+    name: "RIBS (12 PAIRS)",
+    category: "AXIAL SKELETON · THORACIC CAGE",
+    sections: [
+      { title: "CLASSIFICATION", content: "True ribs (1–7): directly to sternum via own costal cartilage.\nFalse ribs (8–10): indirect connection via rib 7 cartilage.\nFloating ribs (11–12): no sternal connection — end in abdominal musculature." },
+      { title: "TYPICAL RIB ANATOMY (3rd–9th)", content: "Head (articulates with vertebra — costovertebral joint), Crest of head, Neck, Tubercle (articulates with transverse process = costotransverse joint), Body/Shaft (curved, Angle = where rib bends anterolaterally), Costal groove (protects intercostal nerves and vessels — on inferior surface)." },
+      { title: "ATYPICAL RIBS", content: "1st = shortest, broadest, most curved. Has scalene tubercle. Articulates only with T1. Has 2 grooves for subclavian vessels.\n2nd = longer, almost twice length of 1st.\n10th = one facet on head.\n11th & 12th = no neck, no tubercle (no costotransverse joint)." },
+      { title: "EXAM NOTES", exam: true, content: "Ribs 11 & 12 = NO neck, NO tubercle. Ribs 1, 10, 11, 12 = ONE facet only on head. Intercostal muscles: External (most superficial) → Internal → Innermost (deepest). Costal groove runs along inferior border — neurovascular bundle here." }
+    ]
+  },
+  humerus: {
+    name: "HUMERUS",
+    category: "APPENDICULAR SKELETON · UPPER LIMB",
+    sections: [
+      { title: "OVERVIEW", content: "Long bone of the upper arm. Head articulates with glenoid fossa of scapula (glenohumeral joint = ball & socket = multiaxial). Distally forms elbow joint with radius and ulna." },
+      { title: "KEY MARKINGS", content: "Greater tubercle (site of rotator cuff muscle attachment), Lesser tubercle, Intertubercular groove, Epicondyles (medial + lateral), Lateral supraepicondylar ridge." },
+      { title: "JOINTS", content: "Glenohumeral = ball & socket (multiaxial). Elbow = hinge joint (uniaxial: flexion/extension only)." },
+      { title: "EXAM NOTES", exam: true, content: "Greater tubercle = example of Tubercle marking. Epicondyle = eminence superior to condyle. Hinge joint at elbow = uniaxial." }
+    ]
+  },
+  forearm: {
+    name: "RADIUS & ULNA",
+    category: "APPENDICULAR SKELETON · UPPER LIMB",
+    sections: [
+      { title: "OVERVIEW", content: "Two parallel bones of the forearm. Radius = lateral (thumb side). Ulna = medial (pinky side). Connected by interosseous membrane (fibrous joint = syndesmosis)." },
+      { title: "MOVEMENTS", content: "Pronation/Supination occur here — the radius rotates around the ulna. Proximal radioulnar joint = pivot joint. Distal radioulnar joint = pivot joint." },
+      { title: "SYNDESMOSIS", content: "Ulna and radius connected by interosseous membrane = syndesmosis (fibrous joint). This is also the type at inferior tibiofibular joint." },
+      { title: "EXAM NOTES", exam: true, content: "Radius is lateral (thumb side). Supination = palms up/forward (anatomical position). Pronation = palms down. Both radioulnar joints = pivot synovial joints." }
+    ]
+  },
+  hand: {
+    name: "CARPALS, METACARPALS & PHALANGES",
+    category: "APPENDICULAR SKELETON · HAND",
+    sections: [
+      { title: "CARPALS", content: "8 short bones forming the wrist. Short bones are cuboidal and found ONLY in ankle (tarsus) and wrist (carpus)." },
+      { title: "JOINTS", content: "Carpometacarpal joint of thumb = SADDLE joint (biaxial). Metacarpophalangeal (MCP) joints = CONDYLOID joints (biaxial: flex/ext + ab/adduct). Interphalangeal joints = HINGE joints (uniaxial)." },
+      { title: "EXAM NOTES", exam: true, content: "Short bones = wrist + ankle ONLY. Abduction of thumb is in sagittal plane (breaks the rules!). CMC of thumb = saddle joint. MCP = condyloid. IP joints = hinge." }
+    ]
+  },
+  lumbar: {
+    name: "LUMBAR VERTEBRAE (L1–L5)",
+    category: "AXIAL SKELETON · VERTEBRAL COLUMN",
+    sections: [
+      { title: "CHARACTERISTICS", content: "Massive kidney-shaped body (heaviest vertebrae — weight bearing). Vertebral foramen larger than thoracic. Long, slender, hatchet-shaped transverse processes. Thick, short spinous process." },
+      { title: "CURVATURE", content: "Secondary (lordotic) curve — develops after birth when walking begins. Excessive = lordosis (sway back, hollow back) — seen in pregnancy." },
+      { title: "SPINAL CORD", content: "Conus medullaris ends at L1/L2. Below this = cauda equina (horse's tail). Filum terminale anchors the cord." },
+      { title: "EXAM NOTES", exam: true, content: "Lumbosacral angle = joint between L5 and sacrum. Iliolumbar ligament = transverse process of L5 to ilium. L5-S1 = important level clinically." }
+    ]
+  },
+  pelvis: {
+    name: "PELVIS (ILIUM, ISCHIUM, PUBIS)",
+    category: "AXIAL + APPENDICULAR · PELVIC GIRDLE",
+    sections: [
+      { title: "INNOMINATE BONE", content: "Ilium + Ischium + Pubis fused at the triradiate cartilage to form the innominate (unnamed) bone. Two innominate bones + sacrum = pelvic girdle." },
+      { title: "KEY FEATURES", content: "Acetabulum = socket for femoral head (hip joint). Has acetabular labrum (fibrocartilage), lunate surface, acetabular fossa.\nObturator foramen = obturator nerve, artery, vein.\nIschial tuberosity = 'sit bones' — huge tuberosity.\nASIS = anterior superior iliac spine (sartorius attaches here). AIIS = rectus femoris attaches here." },
+      { title: "LIGAMENTS", content: "Sacroiliac joint: compound synovial plane + fibrous (syndesmosis). Sacrotuberous: sacrum → ischial tuberosity. Sacrospinous: sacrum → ischial spine." },
+      { title: "EXAM NOTES", exam: true, content: "Greater sciatic foramen = formed by sacrospinous ligament — piriformis + sciatic nerve pass through. Lesser sciatic foramen = formed by sacrotuberous + sacrospinous ligaments — obturator internus tendon passes through." }
+    ]
+  },
+  sacrum: {
+    name: "SACRUM & COCCYX",
+    category: "AXIAL SKELETON · VERTEBRAL COLUMN",
+    sections: [
+      { title: "SACRUM", content: "5 fused sacral vertebrae. Base = superior; Apex = inferior. Sacral promontory = anterior superior edge. Sacral hiatus = opening at S4–S5 (no lamina/spinous process at these levels). Sacral canal = continuation of vertebral canal." },
+      { title: "CRESTS", content: "Medial crest = fused spinous processes. Intermediate crest = fused articular processes. Lateral crest = fused transverse processes." },
+      { title: "LUMBOSACRAL JOINT", content: "L5–S1 = lumbosacral angle. Sacroiliac joint = compound (synovial plane + fibrous). Sacrococcygeal joint = secondary cartilaginous." },
+      { title: "EXAM NOTES", exam: true, content: "Sacral hiatus at S4/S5 — where caudal epidural injections go. Sacrum articulates with ilium = sacroiliac joint. Primary curvature (kyphotic)." }
+    ]
+  },
+  femur: {
+    name: "FEMUR",
+    category: "APPENDICULAR SKELETON · LOWER LIMB",
+    sections: [
+      { title: "OVERVIEW", content: "Longest and heaviest bone in the body. Ball & socket hip joint (head of femur in acetabulum). Distal end forms knee joint with tibia (NOT fibula)." },
+      { title: "KEY MARKINGS", content: "Greater trochanter (Trochanter = large blunt elevation, lateral), Lesser trochanter (medial), Linea aspera (posterior ridge for muscle attachment), Adductor tubercle, Intercondylar fossa, Medial/lateral condyles and epicondyles." },
+      { title: "LIGAMENT OF HEAD OF FEMUR", content: "Contains artery to femoral head. Has NO stabilization role. Do not confuse with hip ligaments (which ALL prevent hyperextension)." },
+      { title: "EXAM NOTES", exam: true, content: "Femur articulates with TIBIA, not fibula. Patella (sesamoid) forms femoropatellar joint. 2 of the quadriceps arise from posterior femur. Intertrochanteric CREST is on posterior view (intertrochanteric LINE is anterior)." }
+    ]
+  },
+  patella: {
+    name: "PATELLA",
+    category: "APPENDICULAR SKELETON · SESAMOID BONE",
+    sections: [
+      { title: "OVERVIEW", content: "Large sesamoid bone (within the quadriceps tendon). Formed AFTER birth. Sits in the femoropatellar joint. Located in anterior knee." },
+      { title: "MECHANISM", content: "Quadriceps muscle → quadriceps tendon → PATELLA → patellar ligament → tibial tuberosity. The patellar ligament is technically the continuation of the quadriceps tendon inferior to the patella." },
+      { title: "EXAM NOTES", exam: true, content: "Sesamoid bones = found within tendons. Patella = largest sesamoid bone. Patella falls medially. Knee is a MODIFIED HINGE joint. Knee articulations: Femorotibial (x2) + Femoropatellar = 3 articulations." }
+    ]
+  },
+  tibia: {
+    name: "TIBIA & FIBULA",
+    category: "APPENDICULAR SKELETON · LEG",
+    sections: [
+      { title: "TIBIA", content: "Large, weight-bearing shin bone (medial). Articulates with femur superiorly (knee joint) and talus inferiorly (ankle joint). Gerdy's tubercle = iliotibial (IT) band insertion." },
+      { title: "FIBULA", content: "Non-weight bearing. Lateral. For muscle attachment. NOT part of knee joint. Inferior tibiofibular joint = syndesmosis (fibrous). Both form the malleolar mortise of ankle joint." },
+      { title: "COMPARTMENTS OF LEG", content: "Anterior (deep fibular n.) = dorsiflexors. Lateral (superficial fibular n.) = everters. Posterior (tibial n.) = plantarflexors (superficial: gastrocnemius, soleus; deep: Tom Dick Harry = Tibialis posterior, flexor Digitorum longus, flexor Hallucis longus)." },
+      { title: "EXAM NOTES", exam: true, content: "Tibia = weight bearing. Fibula = NOT weight bearing. Fibula does NOT form part of knee joint. Inferior tibiofibular = SYNDESMOSIS. Tom Dick Harry for deep posterior compartment (medial to lateral order at ankle)." }
+    ]
+  },
+  foot: {
+    name: "TARSALS, METATARSALS & PHALANGES",
+    category: "APPENDICULAR SKELETON · FOOT",
+    sections: [
+      { title: "BONES", content: "7 tarsals + 5 metatarsals + 14 phalanges (per foot). Great toe (1st digit) has only 2 phalanges (proximal + distal). Digits 2–5 have 3 (proximal + middle + distal)." },
+      { title: "KEY TARSALS", content: "Calcaneus = heel bone (largest tarsal). Talus = only bone with NO muscle/tendon attachments; articulates with tibia + fibula + calcaneus. Navicular = anterior to talus. Cuboid = fibularis longus groove. 3 Cuneiforms (medial/intermediate/lateral)." },
+      { title: "FOOT JOINTS", content: "Subtalar = talus + calcaneus = eversion/inversion (plane synovial). Talocrural = ankle = hinge. Metatarsophalangeal (MTP) = condyloid. Interphalangeal (IP) = hinge." },
+      { title: "ARCHES", content: "Medial longitudinal arch (spring ligament supports head of talus). Lateral longitudinal arch. Transverse arch. Long plantar ligament (calcaneus to cuboid)." },
+      { title: "EXAM NOTES", exam: true, content: "Talus = only foot bone to articulate with leg bones. Sesamoid bones in Flexor hallucis brevis tendon (layer 3). PAD = Plantar ADduct (plantar interossei). DAB = Dorsal ABduct (dorsal interossei)." }
+    ]
+  }
+};
+
+// ===== QUIZ DATA =====
+const quizData = [
+  { q: "What are the components of the axial skeleton?", a: "Skull, cervical vertebrae, ribs, sternum, thoracic vertebrae, lumbar vertebrae, sacrum, and coccyx — your midline skeleton." },
+  { q: "What is anatomical position and why does it matter?", a: "Standing upright, facing forward, with palms forward (supinated). ALL directional terms assume this position." },
+  { q: "What is the difference between a true, false, and floating rib?", a: "True (1–7): own cartilage directly to sternum. False (8–10): indirect via rib 7 cartilage. Floating (11–12): no sternal connection at all." },
+  { q: "Which ribs have only ONE facet on their head?", a: "Ribs 1, 10, 11, and 12 have only one facet. Ribs 11 & 12 also have NO neck or tubercle." },
+  { q: "What joint type is the atlanto-occipital joint? What movement does it permit?", a: "Condyloid synovial joint. Permits nodding 'YES' (flexion/extension). Atlanto-axial = pivot joint (shake 'NO' = rotation)." },
+  { q: "Name the 3 parts of the sternum and a key landmark.", a: "Manubrium (top) + Body + Xiphoid process. Sternal angle (of Louis) = manubrium-body junction = level of 2nd costal cartilage = T4–T5 disc. It's a SYMPHYSIS." },
+  { q: "What is the functional and structural unit of muscle?", a: "Structural unit = muscle fiber. Functional unit = motor unit (one motor neuron + all muscle fibers it controls)." },
+  { q: "What is the difference between isometric and isotonic contraction?", a: "Isometric = muscle length stays the same, tension increases, no movement. Isotonic = muscle changes length, movement occurs." },
+  { q: "List the types of synovial joints from least to most mobile.", a: "Plane (gliding) → Hinge (uniaxial) → Pivot (uniaxial rotation) → Condyloid (biaxial) → Saddle (biaxial) → Ball & Socket (multiaxial)." },
+  { q: "Where does the spinal cord end? What is below it?", a: "Conus medullaris ends at L1/L2. Below = Cauda equina ('horse's tail' = nerve roots). Filum terminale anchors the cord to coccyx." },
+  { q: "What are the 3 meningeal layers from outside in?", a: "Dura mater (outer) → Arachnoid mater (middle, spider web) → Pia mater (innermost). CSF is in the subarachnoid space (between arachnoid + pia)." },
+  { q: "What passes through the greater sciatic foramen?", a: "Piriformis muscle and the sciatic nerve (largest nerve in body). Formed by the sacrospinous ligament." },
+  { q: "What passes through the lesser sciatic foramen?", a: "Tendon of obturator internus. Formed by sacrotuberous + sacrospinous ligaments." },
+  { q: "Which muscles form 'Pes Anserinus'? What do they spell?", a: "SGT = Sartorius + Gracilis + Semitendinosus. They attach to the medial aspect of the tibia." },
+  { q: "What is the difference between ACL and PCL?", a: "ACL = weaker, attaches to anterior tibia, goes to posterior femur, PREVENTS hyperextension. PCL = stronger, prevents hyperflexion, opposite of ACL." },
+  { q: "What is a motor unit?", a: "One motor neuron + ALL the muscle fibers it innervates. Large motor units = gross movement (leg). Small = fine movement (eye)." },
+  { q: "What is the role of the ligament of the head of femur?", a: "It transmits an artery (to the femoral head). It has NO stabilization role." },
+  { q: "Name the deep erector spinae muscles — 'I Love Spaghetti'", a: "Iliocostalis, Longissimus, Spinalis. All innervated by posterior rami of spinal nerves." },
+  { q: "Which compartment of the leg are the dorsiflexors in? What nerve?", a: "Anterior compartment. Innervated by the deep fibular nerve." },
+  { q: "What are PAD and DAB in the foot?", a: "Plantar interossei = PAD (Plantar ADduct). Dorsal interossei = DAB (Dorsal ABduct)." },
+  { q: "What makes the sacral hiatus?", a: "S4 and S5 vertebrae have no lamina or spinous process, leaving an opening = sacral hiatus." },
+  { q: "Describe the thoracolumbar fascia layers", a: "3 layers: superficial, intermediate, and deep. Encloses the deep back muscles (intrinsic back muscles)." },
+];
+
+function selectBone(id) {
+  // Clear all active
+  document.querySelectorAll('.bone-path').forEach(el => el.classList.remove('active'));
+  // Set active on clicked group
+  const group = document.getElementById('bone-' + id);
+  if (group) group.querySelectorAll('.bone-path').forEach(el => el.classList.add('active'));
+
+  const data = boneData[id];
+  if (!data) return;
+
+  document.getElementById('panel-name').textContent = data.name;
+  document.getElementById('panel-category').textContent = data.category;
+
+  let html = '';
+  data.sections.forEach(sec => {
+    html += `<div class="info-section"><h4>${sec.title}</h4>`;
+    if (sec.content) {
+      html += `<p>${sec.content.replace(/\n/g,'<br>')}</p>`;
+    }
+    if (sec.tags) {
+      sec.tags.forEach(t => html += `<span class="tag tag-${t.type}">${t.text}</span>`);
+    }
+    if (sec.exam) {
+      html += `<div class="exam-alert">${sec.content}</div>`;
+    }
+    html += `</div>`;
+  });
+  document.getElementById('panel-body').innerHTML = html;
+}
+
+// ===== TABS =====
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('skeleton-view').classList.add('panel-hidden');
+  document.getElementById('notes-view').classList.add('panel-hidden');
+  document.getElementById('quiz-view').classList.add('panel-hidden');
+
+  if (tab === 'skeleton') {
+    document.getElementById('skeleton-view').classList.remove('panel-hidden');
+    document.querySelectorAll('.tab')[0].classList.add('active');
+  } else if (tab === 'notes') {
+    document.getElementById('notes-view').classList.remove('panel-hidden');
+    document.querySelectorAll('.tab')[1].classList.add('active');
+  } else {
+    document.getElementById('quiz-view').classList.remove('panel-hidden');
+    document.querySelectorAll('.tab')[2].classList.add('active');
+  }
+}
+
+function setView(v) {
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  // Basic rotate hint
+}
+
+// ===== BUILD QUIZ =====
+function buildQuiz() {
+  const list = document.getElementById('quiz-list');
+  let html = '';
+  quizData.forEach((item, i) => {
+    html += `
+    <div style="margin-bottom:12px;border:1px solid var(--border);border-radius:4px;overflow:hidden;cursor:pointer" onclick="toggleQ(${i})">
+      <div style="padding:14px 18px;background:var(--surface);display:flex;align-items:flex-start;gap:12px">
+        <span style="font-size:0.62rem;color:var(--accent3);font-weight:700;flex-shrink:0;padding-top:2px">Q${String(i+1).padStart(2,'0')}</span>
+        <span style="font-size:0.76rem;line-height:1.6;color:var(--text)">${item.q}</span>
+        <span id="q-arrow-${i}" style="margin-left:auto;color:var(--muted);flex-shrink:0">▼</span>
+      </div>
+      <div id="q-ans-${i}" style="display:none;padding:12px 18px 14px 42px;background:#0d1018;border-top:1px solid var(--border)">
+        <span style="font-size:0.74rem;line-height:1.7;color:var(--accent)">${item.a}</span>
+      </div>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+function toggleQ(i) {
+  const ans = document.getElementById('q-ans-'+i);
+  const arrow = document.getElementById('q-arrow-'+i);
+  const open = ans.style.display !== 'none';
+  ans.style.display = open ? 'none' : 'block';
+  arrow.textContent = open ? '▼' : '▲';
+  arrow.style.color = open ? 'var(--muted)' : 'var(--accent)';
+}
+
+buildQuiz();
+</script>
+</body>
+</html>
